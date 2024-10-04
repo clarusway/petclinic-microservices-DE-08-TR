@@ -66,6 +66,7 @@ pipeline {
                 script {
                     sh "envsubst < k8s/petclinic_chart/values-template.yaml > k8s/petclinic_chart/values.yaml"
                     sh "sed -i s/HELM_VERSION/${BUILD_NUMBER}/ k8s/petclinic_chart/Chart.yaml"
+
                     sh "helm package k8s/petclinic_chart"
                     
                     // Nexus'a push
@@ -81,7 +82,16 @@ pipeline {
             steps {
                 echo 'Deploying App from Nexus'
                 sh "rancher login $RANCHER_URL --context $RANCHER_CONTEXT --token $RANCHER_CREDS_USR:$RANCHER_CREDS_PSW"
-                
+                sh "rancher kubectl delete secret regcred -n petclinic-staging-ns || true"
+                sh """
+                rancher kubectl create secret generic regcred -n petclinic-staging-ns \
+                --from-file=.dockerconfigjson=$JENKINS_HOME/.docker/config.json \
+                --type=kubernetes.io/dockerconfigjson
+                """
+                sh "rm -f k8s/config"
+                sh "rancher cluster kf $CLUSTERID > k8s/config"
+                sh "chmod 400 k8s/config"
+ 
                 // Nexus'tan Helm chart pull ve deploy
                 sh "helm repo add petclinic-helm http://${NEXUS_USERNAME}:${NEXUS_PASSWORD}@54.242.202.131:8081/repository/petclinic-helm/"
                 sh "helm repo update"
