@@ -83,7 +83,7 @@ pipeline {
                 sh "rancher login $RANCHER_URL --context $RANCHER_CONTEXT --token $RANCHER_CREDS_USR:$RANCHER_CREDS_PSW"
                 
                 // Nexus'tan Helm chart pull ve deploy
-                sh "helm repo add petclinic-helm ${NEXUS_REPO_URL}"
+                sh "helm repo add petclinic-helm http://${NEXUS_USERNAME}:${NEXUS_PASSWORD}@54.242.202.131:8081/repository/petclinic-helm/"
                 sh "helm repo update"
                 sh "AWS_REGION=$AWS_REGION helm upgrade --install petclinic-app-release petclinic-helm/petclinic_chart --version ${BUILD_NUMBER} --namespace petclinic-staging-ns --kubeconfig k8s/config"
             }
