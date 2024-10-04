@@ -1,25 +1,36 @@
 pipeline {
     agent any
     environment {
-        PATH=sh(script:"echo $PATH:/usr/local/bin", returnStdout:true).trim()
         APP_NAME="petclinic"
         APP_REPO_NAME="clarusway-repo/petclinic-app-staging"
-        AWS_ACCOUNT_ID=sh(script:'export PATH="$PATH:/usr/local/bin" && aws sts get-caller-identity --query Account --output text', returnStdout:true).trim()
         AWS_REGION="us-east-1"
-        ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        ECR_REGISTRY=""
         RANCHER_URL="https://rancher-de.clarusway.us"
-        RANCHER_CONTEXT="c-m-v7rn2pfq:p-5cgqb" 
+        RANCHER_CONTEXT="c-m-v7rn2pfq:p-5cgqb"
         CLUSTERID="c-m-v7rn2pfq"
         RANCHER_CREDS=credentials('rancher-petclinic-credentials')
         NEXUS_REPO_URL="http://54.242.202.131:8081/repository/petclinic-helm/"
     }
+
     stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    // PATH ve AWS_ACCOUNT_ID değerlerini script bloğu içinde tanımlayalım
+                    env.PATH="${env.PATH}:/usr/local/bin"
+                    env.AWS_ACCOUNT_ID = sh(script:'aws sts get-caller-identity --query Account --output text', returnStdout:true).trim()
+                    env.ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                }
+            }
+        }
+
         stage('Package Application') {
             steps {
                 echo 'Packaging the app into jars with maven'
                 sh ". ./jenkins/package-with-maven-container.sh"
             }
         }
+
         stage('Prepare Tags for Staging Docker Images') {
             steps {
                 echo 'Preparing Tags for Staging Docker Images'
@@ -63,11 +74,13 @@ pipeline {
                 echo 'Uploading Helm Chart to Nexus Repository'
                 withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
                     sh """
-                    curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} --upload-file petclinic_chart-${BUILD_NUMBER}.tgz ${NEXUS_REPO_URL}
+                    curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} \
+                    --upload-file k8s/petclinic_chart/petclinic_chart-${BUILD_NUMBER}.tgz ${NEXUS_REPO_URL}
                     """
                 }
             }
         }
+
         stage('Deploy App on Petclinic Kubernetes Cluster') {
             steps {
                 echo 'Deploying App on K8s Cluster'
