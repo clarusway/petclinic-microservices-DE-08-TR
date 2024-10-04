@@ -70,14 +70,19 @@ pipeline {
                 sh ". ./jenkins/push-staging-docker-images-to-ecr.sh"
             }
         }
+
+
+
         stage('Upload Helm Chart to Nexus') {
             steps {
                 echo 'Uploading Helm Chart to Nexus Repository'
                 withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
-                    sh """
-                    curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} \
+                sh "envsubst < k8s/petclinic_chart/values-template.yaml > k8s/petclinic_chart/values.yaml"
+                sh "sed -i s/HELM_VERSION/${BUILD_NUMBER}/ k8s/petclinic_chart/Chart.yaml"
+                sh "helm package k8s/petclinic_chart"
+                sh "curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} \
                     --upload-file k8s/petclinic_chart/petclinic_chart-${BUILD_NUMBER}.tgz ${NEXUS_REPO_URL}
-                    """
+                    "
                 }
             }
         }
@@ -86,8 +91,6 @@ pipeline {
             steps {
                 echo 'Deploying App on K8s Cluster'
                 sh "rancher login $RANCHER_URL --context $RANCHER_CONTEXT --token $RANCHER_CREDS_USR:$RANCHER_CREDS_PSW"
-                sh "envsubst < k8s/petclinic_chart/values-template.yaml > k8s/petclinic_chart/values.yaml"
-                sh "sed -i s/HELM_VERSION/${BUILD_NUMBER}/ k8s/petclinic_chart/Chart.yaml"
                 sh "rancher kubectl delete secret regcred -n petclinic-staging-ns || true"
                 sh """
                 rancher kubectl create secret generic regcred -n petclinic-staging-ns \
