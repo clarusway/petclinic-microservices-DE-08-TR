@@ -4,7 +4,7 @@ pipeline {
         APP_NAME="petclinic"
         APP_REPO_NAME="clarusway-repo/petclinic-app-staging"
         AWS_REGION="us-east-1"
-        ECR_REGISTRY=""
+        ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         RANCHER_URL="https://rancher-de.clarusway.us"
         RANCHER_CONTEXT="c-m-v7rn2pfq:p-5cgqb"
         CLUSTERID="c-m-v7rn2pfq"
