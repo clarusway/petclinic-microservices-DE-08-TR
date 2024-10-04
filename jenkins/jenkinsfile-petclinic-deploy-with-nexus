@@ -76,7 +76,11 @@ pipeline {
         stage('Upload Helm Chart to Nexus') {
             steps {
                 echo 'Uploading Helm Chart to Nexus Repository'
+
                 withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+                sh """
+                curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} --upload-file k8s/petclinic_chart/petclinic_chart-${BUILD_NUMBER}.tgz ${NEXUS_REPO_URL}
+                """
                 sh "envsubst < k8s/petclinic_chart/values-template.yaml > k8s/petclinic_chart/values.yaml"
                 sh "sed -i s/HELM_VERSION/${BUILD_NUMBER}/ k8s/petclinic_chart/Chart.yaml"
                 sh "helm package k8s/petclinic_chart"
